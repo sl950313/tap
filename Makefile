@@ -2,11 +2,12 @@
 cc=g++
 include= -I ./include/
 LIB = -L ./lib -lTapTradeAPI -lTapQuoteAPI -lpthread
-obj = Quote.o Trade.o SimpleEvent.o strategy.o StructFunction.o
-target = test
+GLIB = `pkg-config glib-2.0 --cflags --libs`
+obj = Quote.o Trade.o SimpleEvent.o strategy.o StructFunction.o config.o
+target = trading
 
-$(target): Demo.cpp $(obj)
-	$(cc) -o $(target) $(obj) Demo.cpp $(include) $(LIB) 
+$(target): main.cpp $(obj)
+	$(cc) -o $(target) $(obj) main.cpp $(include) $(LIB) $(GLIB)
 	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./lib
 
 Quote.o: Quote.cpp Quote.h
@@ -17,6 +18,9 @@ Trade.o: Trade.cpp Trade.h
 
 strategy.o: strategy.cpp strategy.h
 	$(cc) -c strategy.cpp -g
+
+config.o: config.cpp config.h
+	$(cc) -c config.cpp $(GLIB)
 
 StructFunction.o: StructFunction.cpp StructFunction.h
 	$(cc) -c StructFunction.cpp -g
