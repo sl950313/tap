@@ -171,7 +171,14 @@ void Strategy::SaveDataVec(TapAPIQuoteWhole *pDepthMarketData) {
    */
 }
 
-void Strategy::set_instMessage_map_stgy(map<string, TapAPITradeContractInfo*>& instMessage_map_stgy) {
+void Strategy::set_instMessage_map_stgy(map<string, TapAPITradeContractInfo*> instMessage_map_stgy) {
+   cout << instMessage_map_stgy.size() << endl;//>>>>
+   map<string, TapAPITradeContractInfo*> map_tmp;
+   map_tmp = instMessage_map_stgy;
+   for (map<string, TapAPITradeContractInfo*>::iterator it = map_tmp.begin(); it != map_tmp.end(); ++it) {
+      cout << it->first << endl;//>>>
+      cout << it->second << endl;//>>>
+   }
    m_instMessage_map_stgy = instMessage_map_stgy;
    cerr<<"收到合约个数:"<<m_instMessage_map_stgy.size()<<endl; 
 }
@@ -184,7 +191,7 @@ void Strategy::CalculateEarningsInfo(TapAPIQuoteWhole *pDepthMarketData) {
    /*
    //判断该合约是否有持仓
    if(TDSpi_stgy->send_trade_message_map_KeyNum(pDepthMarketData->InstrumentID) > 0)
-      TDSpi_stgy->setLastPrice(pDepthMarketData->InstrumentID, pDepthMarketData->LastPrice); 
+   TDSpi_stgy->setLastPrice(pDepthMarketData->InstrumentID, pDepthMarketData->LastPrice); 
 
    //整个账户的浮动盈亏,按开仓价算
    m_openProfit_account = TDSpi_stgy->sendOpenProfit_account(pDepthMarketData->InstrumentID, pDepthMarketData->LastPrice); 
@@ -195,7 +202,7 @@ void Strategy::CalculateEarningsInfo(TapAPIQuoteWhole *pDepthMarketData) {
    cerr<<" 平仓盈亏:"<<m_closeProfit_account<<",浮动盈亏:"<<m_openProfit_account<<"当前合约:"<<pDepthMarketData->InstrumentID<<" 最新价:"<<pDepthMarketData->LastPrice<<" 时间:"<<pDepthMarketData->UpdateTime<<endl;//double类型为0有时候会是-1.63709e-010，是小于0的，但+1后的值是1
 
    TDSpi_stgy->printTrade_message_map(); 
-   */
+    */
 }
 
 //读取历史数据

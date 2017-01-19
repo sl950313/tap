@@ -12,10 +12,14 @@ void loadConfigureFile(char *config_filename, Configure &config) {
    GError *err = NULL;
    keyfile = g_key_file_new();
    g_key_file_load_from_file(keyfile, (gchar *)config_filename, G_KEY_FILE_NONE, &err);
-   char *username = g_key_file_get_string(keyfile, "Account", "username", &err);
-   strcpy(config.username, username);
-   char *passwd = g_key_file_get_string(keyfile, "Account", "password", &err);
-   strcpy(config.passwd, passwd);
+   char *username_md = g_key_file_get_string(keyfile, "Account", "username_md", &err);
+   strcpy(config.username_md, username_md);
+   char *passwd_md = g_key_file_get_string(keyfile, "Account", "password_md", &err);
+   strcpy(config.passwd_td, passwd_md);
+   char *username_td = g_key_file_get_string(keyfile, "Account", "username_td", &err);
+   strcpy(config.username_td, username_td);
+   char *passwd_td = g_key_file_get_string(keyfile, "Account", "password_td", &err);
+   strcpy(config.passwd_td, passwd_td);
    char *auth_code = g_key_file_get_string(keyfile, "Account", "authCode", &err);
    strcpy(config.auth_code, auth_code);
 

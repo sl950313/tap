@@ -45,10 +45,10 @@ int main(int argc, char **argv) {
 
    objQuote->SetAPI(p_mdApi);
    objQuote->setFront(config.ip_md, config.port_md);
-   objQuote->setAccount(config.username, config.passwd);
+   objQuote->setAccount(config.username_md, config.passwd_md);
 
    //--------------初始化交易UserApi，创建交易API实例----------------------------------
-   cout << GetTapTradeAPIVersion() << endl;
+   //cout << GetTapTradeAPIVersion() << endl;
    ITapTradeAPI *ptradeAPI = Trade::createTapTradeApi(config.auth_code, config.log_path, errorcode);
    if (NULL == ptradeAPI){
       cout << "创建API实例失败，错误码：" << errorcode <<endl;
@@ -57,7 +57,12 @@ int main(int argc, char **argv) {
    Trade *objTrade = new Trade(ptradeAPI, p_mdApi, objQuote);
    ptradeAPI->SetAPINotify(objTrade); 
    objTrade->setFront(config.ip_td, config.port_td);
-   objTrade->setAccount(config.username, config.passwd);
+   objTrade->setAccount(config.username_td, config.passwd_td);
+
+   g_pUserSpi_tradeAll = objTrade;//全局的TD回调处理类对象，人机交互函数需用到
+   //--------------创建策略实例--------------------------------------------------------
+   g_strategy = new Strategy(objTrade);
+   g_strategy->setInstId("IF1705");
 
    // 先启动TD线程
    bool ret = objTrade->init();
@@ -66,6 +71,7 @@ int main(int argc, char **argv) {
       return -1;
    }
    // 再启动MD线程.
+   cout << GetTapQuoteAPIVersion() << endl;//>>>>
    objQuote->init();
 
    //--------------人机交互模块--------------------------------------------------------
@@ -101,7 +107,7 @@ void *hcInteraction(void *) {
       case 0:
          {     
             cerr<<"查看账户持仓:"<<endl;
-            g_pUserSpi_tradeAll->printTradeMessageMap();
+            g_pUserSpi_tradeAll->printTrade_message_map();
             cerr<<"请输入指令(查看持仓:show,强平持仓:close,允许开仓:yxkc, 禁止开仓:jzkc)："<<endl;
             break;
          }

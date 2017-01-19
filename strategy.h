@@ -37,7 +37,7 @@ public:
 	void SaveDataTxtCsv(TapAPIQuoteWhole *pDepthMarketData);
 
 	//设置合约-合约信息结构体的map
-	void set_instMessage_map_stgy(map<string, TapAPITradeContractInfo *>& instMessage_map_stgy);
+	void set_instMessage_map_stgy(map<string, TapAPITradeContractInfo *> instMessage_map_stgy);
 
 	//计算账户的盈亏信息
 	void CalculateEarningsInfo(TapAPIQuoteWhole *pDepthMarketData);

@@ -1,10 +1,11 @@
 #ifndef TRADE_H
 #define TRADE_H
 
-#include "./include/TapTradeAPI.h"
+#include "./include/iTapTradeAPI.h"
 #include "./include/TapQuoteAPI.h"
 #include "SimpleEvent.h"
 #include "Quote.h"
+#include "StructFunction.h"
 
 #include <vector>
 #include <string>
@@ -22,7 +23,6 @@ public:
    //void RunTest();
 
 public:
-   //对ITapTradeAPINotify的实现
    virtual void TAP_CDECL OnConnect();
    virtual void TAP_CDECL OnRspLogin(TAPIINT32 errorCode, const TapAPITradeLoginRspInfo *loginRspInfo);
    virtual void TAP_CDECL OnAPIReady();
@@ -47,11 +47,17 @@ public:
    virtual void TAP_CDECL OnRspQryClose(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPICloseInfo *info);
    virtual void TAP_CDECL OnRtnClose(const TapAPICloseInfo *info);
    virtual void TAP_CDECL OnRtnPositionProfit(const TapAPIPositionProfitNotice *info);
-   virtual void TAP_CDECL OnRspQryDeepQuote(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPIDeepQuoteQryRsp *info);
-   virtual void TAP_CDECL OnRspQryExchangeStateInfo(TAPIUINT32 sessionID,TAPIINT32 errorCode, TAPIYNFLAG isLast,const TapAPIExchangeStateInfo * info);
-   virtual void TAP_CDECL OnRtnExchangeStateInfo(const TapAPIExchangeStateInfoNotice * info);
-   virtual void TAP_CDECL OnRtnReqQuoteNotice(const TapAPIReqQuoteNotice *info); //V9.0.2.0 20150520
-   virtual void TAP_CDECL OnRspUpperChannelInfo(TAPIUINT32 sessionID,TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPIUpperChannelInfo * info);
+   virtual void TAP_CDECL OnRspQryCurrency(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPICurrencyInfo *info);
+   virtual void TAP_CDECL OnRspQryTradeMessage(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPITradeMessage *info);
+   virtual void TAP_CDECL OnRtnTradeMessage(const TapAPITradeMessage *info);
+   virtual void TAP_CDECL OnRspQryHisOrder(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPIHisOrderQryRsp *info);
+   virtual void TAP_CDECL OnRspQryHisOrderProcess(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPIHisOrderProcessQryRsp *info);
+   virtual void TAP_CDECL OnRspQryHisMatch(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPIHisMatchQryRsp *info);
+   virtual void TAP_CDECL OnRspQryHisPosition(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPIHisPositionQryRsp *info);
+   virtual void TAP_CDECL OnRspQryHisDelivery(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPIHisDeliveryQryRsp *info);
+   virtual void TAP_CDECL OnRspQryAccountCashAdjust(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPIAccountCashAdjustQryRsp *info);
+   virtual void TAP_CDECL OnRspQryBill(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPIBillQryRsp *info);
+   //对ITapTradeAPINotify的实现
 
 public:
    bool init();
@@ -60,14 +66,36 @@ public:
    void setAccount(char *_username, char *_passwd);
    int login();
    void Disconnect();
+   void QryRight();
    void QryOrder();
    void QryFill();
    void QryPosition();
    void QryAccount();
    void QryContract();
+   void QryFund();
+   void QryExchange();
+   void QryCommodity();
 
-   void printTradeMessageMap();
+   void insertOrder(); // 报单录入请求
+   void orderAction(); // 报单操作请求
+   void printTrades(); // 打印成交记录
+   void CancelOrder(); // 撤单，如需追单，可在报单回报里面等撤单成功后再进行
+
+   void printTrade_message_map();
    void forceClose();
+
+   double sendCloseProfit(); //计算平仓盈亏
+   double sendOpenProfit_account(string instId, double lastPrice); // 计算账户的浮动盈亏，以开仓价算 
+   double sendPositionProfit(); //计算持仓盈亏，以昨结计算，若是日内，与浮动盈亏相同（实际交易中应用比较少）
+
+   void showInstMessage(); //打印所有合约信息
+   void setLastPrice(string instID, double price); //更新合约的最新价
+
+   int send_trade_message_map_KeyNum(string instID); //合约交易信息结构体的map，KEY的个数，为0表示没有该合约的交易信息，即该合约没有持仓(开仓后已经平仓的，KEY不为0）
+
+   int SendHolding_long(string instID); //返回某合约多单持仓量
+
+   int SendHolding_short(string instID); //返回某合约空单持仓量
 
    static ITapTradeAPI *createTapTradeApi(TAPIAUTHCODE authCode, TAPISTR_300 keyOperationLogPath, int errorCode);
 
@@ -87,11 +115,18 @@ private:
    bool firs_inquiry_Position;//是否首次查询投资者持仓
    bool first_inquiry_Instrument;//是否首次查询合约
 
+   TAPISTR_10 m_instId;// 合约代码
+
+   double m_closeProfit;//平仓盈亏，所有合约一起算后的值，另外在m_trade_message_map有单独计算每个合约的平仓盈亏值
+
+   double m_OpenProfit;//浮动盈亏，所有合约一起算后的值，另外在m_trade_message_map有单独计算每个合约的浮动盈亏值
+
    vector<TapAPIOrderInfo*> orderList;//委托记录，全部合约
    vector<TapAPIFillInfo*> tradeList;//成交记录，全部合约
 
    string m_Instrument_all;//所有合约代码合在一起
    map<string, TapAPITradeContractInfo *> m_instMessage_map;//保存合约信息的map
+   map<string, trade_message*> m_trade_message_map;//合约交易信息结构体的map
 
    char ip[64];
    int port;

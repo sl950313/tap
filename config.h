@@ -2,8 +2,10 @@
 #define CONFIG_H
 
 struct Configure {
-   char username[64];
-   char passwd[64];
+   char username_md[64];
+   char passwd_md[64];
+   char username_td[64];
+   char passwd_td[64];
    char auth_code[513];
 
    char ip_md[32];

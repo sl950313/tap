@@ -8,7 +8,7 @@
 using namespace std;
 
 
-//½»Ò×ĞÅÏ¢µÄ½á¹¹Ìå
+//äº¤æ˜“ä¿¡æ¯çš„ç»“æ„ä½“
 struct trade_message
 {
 	trade_message()
@@ -30,30 +30,30 @@ struct trade_message
 	}
 
 
-	string instId;//ºÏÔ¼´úÂë
-	double lastPrice;//×îĞÂ¼Û£¬Ê±¿Ì±£´æºÏÔ¼µÄ×îĞÂ¼Û£¬Æ½²ÖÓÃ
-	double PreSettlementPrice;//ÉÏ´Î½áËã¼Û£¬¶Ô¸ôÒ¹²ÖÓĞÊ±ºòÒªÓÃ£¬¿ìÆÚÓĞÓÃ
-	int holding_long;//¶àµ¥³Ö²ÖÁ¿
-	int holding_short;//¿Õµ¥³Ö²ÖÁ¿
+	string instId;//åˆçº¦ä»£ç 
+	double lastPrice;//æœ€æ–°ä»·ï¼Œæ—¶åˆ»ä¿å­˜åˆçº¦çš„æœ€æ–°ä»·ï¼Œå¹³ä»“ç”¨
+	double PreSettlementPrice;//ä¸Šæ¬¡ç»“ç®—ä»·ï¼Œå¯¹éš”å¤œä»“æœ‰æ—¶å€™è¦ç”¨ï¼Œå¿«æœŸæœ‰ç”¨
+	int holding_long;//å¤šå•æŒä»“é‡
+	int holding_short;//ç©ºå•æŒä»“é‡
 
-	int TodayPosition_long;//¶àµ¥½ñÈÕ³Ö²Ö
-	int YdPosition_long;//¶àµ¥ÉÏÈÕ³Ö²Ö
+	int TodayPosition_long;//å¤šå•ä»Šæ—¥æŒä»“
+	int YdPosition_long;//å¤šå•ä¸Šæ—¥æŒä»“
 
-	int TodayPosition_short;//¿Õµ¥½ñÈÕ³Ö²Ö
-	int YdPosition_short;//¿Õµ¥ÉÏÈÕ³Ö²Ö
+	int TodayPosition_short;//ç©ºå•ä»Šæ—¥æŒä»“
+	int YdPosition_short;//ç©ºå•ä¸Šæ—¥æŒä»“
 
-	double closeProfit_long;//¶àµ¥Æ½²ÖÓ¯¿÷
-	double OpenProfit_long;//¶àµ¥¸¡¶¯Ó¯¿÷
+	double closeProfit_long;//å¤šå•å¹³ä»“ç›ˆäº
+	double OpenProfit_long;//å¤šå•æµ®åŠ¨ç›ˆäº
 
-	double closeProfit_short;//¿Õµ¥Æ½²ÖÓ¯¿÷
-	double OpenProfit_short;//¿Õµ¥¸¡¶¯Ó¯¿÷
+	double closeProfit_short;//ç©ºå•å¹³ä»“ç›ˆäº
+	double OpenProfit_short;//ç©ºå•æµ®åŠ¨ç›ˆäº
 
 };
 
 
 
 
-struct FutureData//ĞĞÇé½á¹¹Ìå¶¨Òå
+struct FutureData//è¡Œæƒ…ç»“æ„ä½“å®šä¹‰
 {
 	string date;
 	string time;
@@ -63,19 +63,19 @@ struct FutureData//ĞĞÇé½á¹¹Ìå¶¨Òå
 	double sell1price;
 	int sell1vol;
 	double vol;
-	double openinterest;//³Ö²ÖÁ¿
+	double openinterest;//æŒä»“é‡
 
 };
 
 
 
-//ÀúÊ·KÏß
+//å†å²Kçº¿
 struct History_data
 {
 	string date;
 	string time;
-	double buy1price;//ÂòÒ»
-	double sell1price;//ÂôÒ»
+	double buy1price;//ä¹°ä¸€
+	double sell1price;//å–ä¸€
 	double open;
 	double high;
 	double low;
@@ -85,7 +85,7 @@ struct History_data
 
 
 
-//¶ÁÈ¡ÀúÊ·KÏß
+//è¯»å–å†å²Kçº¿
 void ReadDatas(string fileName, vector<History_data> &history_data_vec);
 
 
