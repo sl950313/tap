@@ -375,7 +375,7 @@ void TAP_CDECL Trade::OnRspQryContract( TAPIUINT32 sessionID, TAPIINT32 errorCod
 }
 
 void TAP_CDECL Trade::OnRtnContract( const TapAPITradeContractInfo *info ) {
-   //	cout << __FUNCTION__ << " is called." << endl;
+   cout << __FUNCTION__ << " is called." << endl;
 }
 
 void Trade::insertOrder() {
@@ -577,7 +577,59 @@ void TAP_CDECL Trade::OnRspQryFill( TAPIUINT32 sessionID, TAPIINT32 errorCode, T
 }
 
 void TAP_CDECL Trade::OnRtnFill( const TapAPIFillInfo *info ) {
-   //	cout << __FUNCTION__ << " is called." << endl;
+   cout << __FUNCTION__ << " is called." << endl;
+   cerr<<"成交通知:OnRtnTrade:" << endl;//>>
+   //账户下的所有合约
+   //新成交的合约，要订阅行情，才能准确计算账户盈亏信息
+   bool find_instId_Trade = false;
+   for(unsigned int i = 0; i< subscribe_inst_vec.size(); i++) {
+      if(strcmp(subscribe_inst_vec[i].c_str(), info->InstrumentID) == 0) {
+         find_instId_Trade = true;
+         break;
+      } 
+   }
+   if(!find_instId_Trade) {
+      cerr<<"-------------------------------------------------------------OnRtnFill,新成交的合约，订阅行情："<<endl;
+      m_MDSpi->SubscribeMarketData(info->InstrumentID);
+      subscribe_inst_vec.push_back(info->InstrumentID);
+   }
+   //新成交的合约，要构造合约对应交易信息的结构体的map,用count就可以判断
+   bool find_trade_message_map_onTrade = false; 
+   for(map<string, trade_message*>::iterator iter = m_trade_message_map.begin(); iter!= m_trade_message_map.end();iter++)
+   {
+      if(strcmp( (iter->first).c_str(), info->ContractNo)==0) {
+         find_trade_message_map_onTrade = true;
+         break;
+      }
+   }
+
+   if(!find_trade_message_map_onTrade) {
+      cerr<<"-------------------------------------------------------------OnRtnTrade,新成交的合约，建立交易信息map："<<endl; 
+      trade_message* trade_message_p = new trade_message(); 
+      trade_message_p->instId = info->ContractNo; 
+      m_trade_message_map.insert(pair<string, trade_message*> (info->ContractNo, trade_message_p));
+   }
+
+   TapAPIFillInfo* trade_account = new TapAPIFillInfo();
+   memcpy(trade_account,  pTrade, sizeof(TapAPIFillInfo));
+   bool founded=false;     
+   unsigned int i=0;
+   for(i=0; i<tradeList.size(); i++){
+      if(tradeList[i]->TradeID == trade_account->TradeID) {
+         founded=true;   break;
+      }
+   }
+   if(founded) tradeList[i] = trade_account;
+   else  tradeList.push_back(trade_account);
+
+   cerr<<endl << "here should be some output" << endl;//>>>>>>
+   int close_num_account_long = 0;//平仓的多单手数，如果有的话
+   int close_num_account_short = 0;//平仓的空单手数，如果有的话
+   //若是开仓单，则保存到tradeList_notClosed_account_long和tradeList_notClosed_account_short
+   if(trade_account->PositionEffect == '0') {
+
+      //@TOMOROW
+   }
 }
 
 // 查询用户持仓
@@ -706,7 +758,7 @@ void TAP_CDECL Trade::OnRspQryPosition( TAPIUINT32 sessionID, TAPIINT32 errorCod
 }
 
 void TAP_CDECL Trade::OnRtnPosition( const TapAPIPositionInfo *info ) {
-   //	cout << __FUNCTION__ << " is called." << endl;
+   cout << __FUNCTION__ << " is called." << endl;
 }
 
 void TAP_CDECL Trade::OnRspQryClose( TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPICloseInfo *info ) {
@@ -714,11 +766,11 @@ void TAP_CDECL Trade::OnRspQryClose( TAPIUINT32 sessionID, TAPIINT32 errorCode, 
 }
 
 void TAP_CDECL Trade::OnRtnClose( const TapAPICloseInfo *info ) {
-   //	cout << __FUNCTION__ << " is called." << endl;
+   cout << __FUNCTION__ << " is called." << endl;
 }
 
 void TAP_CDECL Trade::OnRtnPositionProfit( const TapAPIPositionProfitNotice *info ) {
-   //	cout << __FUNCTION__ << " is called." << endl;
+   cout << __FUNCTION__ << " is called." << endl;
 }
 
 /*
@@ -751,33 +803,43 @@ void TAP_CDECL Trade::OnRspUpperChannelInfo(TAPIUINT32 sessionID,TAPIINT32 error
  */
 
 void Trade::OnRspQryCurrency(unsigned int, int, char, ITapTrade::TapAPICurrencyInfo const*) {
+   cout << __FUNCTION__ << " is called." << endl;
 }
 
 void Trade::OnRspQryTradeMessage(unsigned int, int, char, ITapTrade::TapAPITradeMessage const*) {
+   cout << __FUNCTION__ << " is called." << endl;
 }
 
 void Trade::OnRtnTradeMessage(ITapTrade::TapAPITradeMessage const*) {
+   cout << __FUNCTION__ << " is called." << endl;
 }
 
 void Trade::OnRspQryHisOrder(unsigned int, int, char, ITapTrade::TapAPIHisOrderQryRsp const*) {
+   cout << __FUNCTION__ << " is called." << endl;
 }
 
 void Trade::OnRspQryHisOrderProcess(unsigned int, int, char, ITapTrade::TapAPIHisOrderQryRsp const*) {
+   cout << __FUNCTION__ << " is called." << endl;
 }
 
 void Trade::OnRspQryHisMatch(unsigned int, int, char, ITapTrade::TapAPIHisMatchQryRsp const*) {
+   cout << __FUNCTION__ << " is called." << endl;
 }
 
 void Trade::OnRspQryHisPosition(unsigned int, int, char, ITapTrade::TapAPIHisPositionQryRsp const*) {
+   cout << __FUNCTION__ << " is called." << endl;
 }
 
 void Trade::OnRspQryHisDelivery(unsigned int, int, char, ITapTrade::TapAPIHisDeliveryQryRsp const*) {
+   cout << __FUNCTION__ << " is called." << endl;
 }
 
 void Trade::OnRspQryAccountCashAdjust(unsigned int, int, char, ITapTrade::TapAPIAccountCashAdjustQryRsp const*) {
+   cout << __FUNCTION__ << " is called." << endl;
 }
 
 void Trade::OnRspQryBill(unsigned int, int, char, ITapTrade::TapAPIBillQryRsp const*) {
+   cout << __FUNCTION__ << " is called." << endl;
 }
 
 void Trade::printTrade_message_map() {

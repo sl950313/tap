@@ -12,9 +12,7 @@ int requestId=0;//请求编号
 Strategy* g_strategy;//策略类指针
 Trade *g_pUserSpi_tradeAll; //全局的TD回调处理类对象，人机交互函数需用到
 
-void *hcInteraction(void *arg);
-
-
+void *hcInteraction(void *arg); 
 void usage() {
    cout << "Usage : ./trading [path_to_config_file]" << endl;
 }

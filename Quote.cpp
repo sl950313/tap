@@ -273,9 +273,10 @@ void TAP_CDECL Quote::OnRspSubscribeQuote(TAPIUINT32 sessionID, TAPIINT32 errorC
       /*
        * @shilei. 收到行情信息后调用策略分析的OnTickData. 详细见strategy.h
        * 2017.01.09
+       * 这里有错，OnTickData这个函数是在深度行情订阅信息返回的时候调用的. 具体应该是在Trade里面深度行情回调的时候执行的.
+       * 2017.1.19
        */
-      //g_strategy->OnTickData(pDepthMarketData);
-
+      //g_strategy->OnTickData(pDepthMarketData); 
    } else {
       cout << "行情订阅失败，错误码：" << errorCode <<endl;
    }
