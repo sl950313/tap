@@ -1,11 +1,14 @@
 #include "Trade.h"
 #include "./include/TapAPIError.h"
+#include "./include/TapTradeAPI.h"
 #include "TradeConfig.h"
 #include "StructFunction.h"
 #include "strategy.h"
 #include <iostream>
 #include <string.h>
 #include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
 
 using namespace std;
 
@@ -17,6 +20,7 @@ Trade::Trade(void):
       memset(username, 0, 64);
       memset(passwd, 0, 64);
       memset(ip, 0, 64);
+      contract_nums = 0;
    }
 
 Trade::Trade(ITapTradeAPI *ptradeApi, ITapQuoteAPI *pmdApi, Quote *mdApi) : m_ptradeApi(ptradeApi), m_pmdApi(pmdApi), m_mdSpi(mdApi) {
@@ -24,6 +28,7 @@ Trade::Trade(ITapTradeAPI *ptradeApi, ITapQuoteAPI *pmdApi, Quote *mdApi) : m_pt
    memset(passwd, 0, 64);
    memset(ip, 0, 64);
    m_bIsAPIReady = false;
+   contract_nums = 0;
 
    first_inquiry_order = true;// 是否首次查询报单
    first_inquiry_trade = true;//是否首次查询成交
@@ -298,11 +303,63 @@ void Trade::QryCommodity() {
 }
 
 void TAP_CDECL Trade::OnRspQryCommodity( TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPICommodityInfo *info ) {
-   cout << __FUNCTION__ << " is called." << endl;
-   if (!errorCode && info) {
-      cout << "品种信息:" << endl;
-   }
+   //cout << __FUNCTION__ << " is called." << endl;
 
+   //cout << __FUNCTION__ << " is called." << endl;
+   if (!errorCode && info) {
+      if(1 || first_inquiry_Instrument == true) {
+         cout << "品种信息:" << endl;
+         m_Instrument_all = m_Instrument_all + "," + info->CommodityNo + ","; 
+         cout << "m_Instrument_all = " << m_Instrument_all << endl;//>>>>>>
+         TapAPICommodityInfo* instField = new TapAPICommodityInfo();
+         memcpy(instField,  info, sizeof(TapAPITradeContractInfo));
+         m_instMessage_map.insert(pair<string, TapAPICommodityInfo*> (instField->ExchangeNo, instField));
+
+         cout << "info->ExchangeNo: " << info->ExchangeNo << endl;
+         //cout << "info->ContractNo1: " << info->ContractNo << endl;
+         cout << "info->CommodityNo: " << info->CommodityNo << endl;
+         cout << "info->CommodityType: " << info->CommodityType << endl;
+         //cout << "info->CommodityName:" << info->CommodityName << endl;
+         //cout << "info->CommodityEngName:" << info->CommodityEngName << endl;
+            if(strcmp(m_instId, info->CommodityNo) == 0) {
+            cerr<<" 响应 | 合约:"<<info->CommodityNo
+            //<<" 合约名称:"<<info->InstrumentName
+            //<<" 合约在交易所的代码:"<<info->ExchangeInstID
+            //<<" 产品代码:"<<info->ProductID
+            <<" 产品类型:"<<info->CommodityType
+            //<<" 交割月:"<<info->DeliveryMonth
+            //<<" 多头保证金率:"<<info->LongMarginRatio
+            //<<" 空头保证金率:"<<info->ShortMarginRatio
+            <<" 合约数量乘数:"<<info->ContractSize
+            <<" 最小变动价位:"<<info->CommodityTickSize
+            <<" 交易所代码:"<<info->ExchangeNo
+            //<<" 交割年份:"<<info->
+            //<<" 交割月:"<<info->DeliveryMonth
+            //<<" 创建日:"<<info->CreateDate
+            //<<" 上市日:"<<info->OpenDate
+            //<<" 到期日:"<<info->ExpireDate
+            //<<" 开始交割日:"<<info->StartDelivDate
+            //<<" 结束交割日:"<<info->EndDelivDate
+            //<<" 合约生命周期状态:"<<info->InstLifePhase
+            //<<" 当前是否交易:"<<info->IsTrading
+            <<endl; 
+            }
+
+         if(isLast) {
+            first_inquiry_Instrument = false; 
+            m_Instrument_all = m_Instrument_all.substr(0,m_Instrument_all.length()-1);
+
+            cerr<<"m_Instrument_all："<<","<<m_Instrument_all<<endl; 
+            cerr<<"map大小(合约个数）："<<m_instMessage_map.size()<<endl;
+
+            map<string, TapAPICommodityInfo*> map_tmp = m_instMessage_map;
+            g_strategy->set_instMessage_map_stgy(m_instMessage_map); 
+            cerr<<"----------------------------输出合约信息map的内容----------------------------"<<endl; 
+            cerr<<"TD初始化完成:"<<endl;
+            //m_pMDUserApi_td->Init(); 
+         } 
+      }
+   }
    m_Event.SignalEvent();
 }
 
@@ -320,65 +377,71 @@ void Trade::QryContract() {
 void TAP_CDECL Trade::OnRspQryContract( TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPITradeContractInfo *info ) {
    //cout << __FUNCTION__ << " is called." << endl;
    if (!errorCode && info) {
-      if(first_inquiry_Instrument == true) {
-         m_Instrument_all = m_Instrument_all + info->ExchangeNo + ","; 
-         TapAPITradeContractInfo* instField = new TapAPITradeContractInfo();
-         memcpy(instField,  info, sizeof(TapAPITradeContractInfo));
-         m_instMessage_map.insert(pair<string, TapAPITradeContractInfo*> (instField->ExchangeNo, instField));
+      m_Instrument_all = m_Instrument_all + info->ExchangeNo + "_" + info->CommodityNo + info->ContractNo1 + ","; 
+      //string contract_t;
+      //contract_t = "" + (char *)(info->ExchangeNo) + "," + info->CommodityNo + info->ContractNo1;
+      TapAPITradeContractInfo* instField = new TapAPITradeContractInfo();
+      memcpy(instField,  info, sizeof(TapAPITradeContractInfo));
+      string tmp = info->ExchangeNo;
+      tmp = tmp +"_" + info->CommodityNo + info->ContractNo1;
+      ++contract_nums;
+      //m_instMessage_map.insert(pair<string, TapAPITradeContractInfo*> (tmp, instField));
 
+      /*
          cout << "info->ExchangeNo: " << info->ExchangeNo << endl;
          cout << "info->ContractNo1: " << info->ContractNo1 << endl;
          cout << "info->CommodityNo: " << info->CommodityNo << endl;
          cout << "info->CommodityType: " << info->CommodityType << endl;
-         /*
-            if(strcmp(m_instId, info->ContractNo1) == 0) {
-            cerr<<" 响应 | 合约:"<<info->InstrumentID
-            <<" 合约名称:"<<info->InstrumentName
-            <<" 合约在交易所的代码:"<<info->ExchangeInstID
-            <<" 产品代码:"<<info->ProductID
-            <<" 产品类型:"<<info->ProductClass
-            <<" 交割月:"<<info->DeliveryMonth
-            <<" 多头保证金率:"<<info->LongMarginRatio
-            <<" 空头保证金率:"<<info->ShortMarginRatio
-            <<" 合约数量乘数:"<<info->VolumeMultiple
-            <<" 最小变动价位:"<<info->PriceTick
-            <<" 交易所代码:"<<info->ExchangeID
-            <<" 交割年份:"<<info->DeliveryYear
-            <<" 交割月:"<<info->DeliveryMonth
-            <<" 创建日:"<<info->CreateDate
-            <<" 上市日:"<<info->OpenDate
-            <<" 到期日:"<<info->ExpireDate
-            <<" 开始交割日:"<<info->StartDelivDate
-            <<" 结束交割日:"<<info->EndDelivDate
-            <<" 合约生命周期状态:"<<info->InstLifePhase
-            <<" 当前是否交易:"<<info->IsTrading
-            <<endl; 
-            }
-          */
+       */
+      /*
+         if(strcmp(m_instId, info->ContractNo1) == 0) {
+         cerr<<" 响应 | 合约:"<<info->InstrumentID
+         <<" 合约名称:"<<info->InstrumentName
+         <<" 合约在交易所的代码:"<<info->ExchangeInstID
+         <<" 产品代码:"<<info->ProductID
+         <<" 产品类型:"<<info->ProductClass
+         <<" 交割月:"<<info->DeliveryMonth
+         <<" 多头保证金率:"<<info->LongMarginRatio
+         <<" 空头保证金率:"<<info->ShortMarginRatio
+         <<" 合约数量乘数:"<<info->VolumeMultiple
+         <<" 最小变动价位:"<<info->PriceTick
+         <<" 交易所代码:"<<info->ExchangeID
+         <<" 交割年份:"<<info->DeliveryYear
+         <<" 交割月:"<<info->DeliveryMonth
+         <<" 创建日:"<<info->CreateDate
+         <<" 上市日:"<<info->OpenDate
+         <<" 到期日:"<<info->ExpireDate
+         <<" 开始交割日:"<<info->StartDelivDate
+         <<" 结束交割日:"<<info->EndDelivDate
+         <<" 合约生命周期状态:"<<info->InstLifePhase
+         <<" 当前是否交易:"<<info->IsTrading
+         <<endl; 
+         }
+       */
 
-         if(isLast) {
-            first_inquiry_Instrument = false; 
-            m_Instrument_all = m_Instrument_all.substr(0,m_Instrument_all.length()-1);
+      if(isLast == 'Y') {
+         //first_inquiry_Instrument = false; 
+         m_Instrument_all = m_Instrument_all.substr(0,m_Instrument_all.length()-1);
 
-            cerr<<"m_Instrument_all大小："<<m_Instrument_all.length()<<","<<m_Instrument_all<<endl; 
-            cerr<<"map大小(合约个数）："<<m_instMessage_map.size()<<endl;
+         cerr<<"m_Instrument_all大小："<<m_Instrument_all.length()<<","<<m_Instrument_all<<endl; 
+         cerr<<"(合约个数）："<< contract_nums <<endl;
+         //cerr<<"map大小(合约个数）："<<m_instMessage_map.size()<<endl;
 
-            map<string, TapAPITradeContractInfo*> map_tmp = m_instMessage_map;
-            g_strategy->set_instMessage_map_stgy(m_instMessage_map); 
-            cerr<<"----------------------------输出合约信息map的内容----------------------------"<<endl; 
-            cerr<<"TD初始化完成:"<<endl;
-            //m_pMDUserApi_td->Init(); 
-         } 
-      }
+         map<string, TapAPICommodityInfo*> map_tmp = m_instMessage_map;
+         g_strategy->set_instMessage_map_stgy(m_instMessage_map); 
+         cerr<<"----------------------------输出合约信息map的内容----------------------------"<<endl; 
+         cerr<<"TD初始化完成:"<<endl;
+         //m_pMDUserApi_td->Init(); 
+         m_Event.SignalEvent(); 
+      } 
    }
-   m_Event.SignalEvent();
 }
 
 void TAP_CDECL Trade::OnRtnContract( const TapAPITradeContractInfo *info ) {
    cout << __FUNCTION__ << " is called." << endl;
 }
 
-void Trade::insertOrder() {
+void Trade::insertOrder(char *instId, char dir, char *kpp, double price, int vol) {
    TAPIUINT32 sessionID = 0;
    TapAPINewOrder stNewOrder;
    memset(&stNewOrder,0,sizeof(stNewOrder));
@@ -411,10 +474,35 @@ void Trade::insertOrder() {
    stNewOrder.TriggerCondition = TAPI_TRIGGER_CONDITION_NONE;
    stNewOrder.TriggerPriceType = TAPI_TRIGGER_PRICE_NONE;
    stNewOrder.AddOneIsValid = APIYNFLAG_NO;
-   
+
    int ret = m_ptradeApi->InsertOrder(&sessionID, &stNewOrder);
    cerr<<" 请求 | 发送下单请求..."<<((ret == 0)?"成功":"失败")<<" ret:"<<ret<<endl;
    if (!ret) m_Event.WaitEvent();
+}
+
+/*
+ * TODO. @shilei.
+ * 2017.02.10
+ */
+void Trade::orderAction(int orderSeq) {//经纪公司报单编号,int
+   bool found=false; unsigned int i=0;
+   for(i=0;i<orderList.size();i++){
+      //if(orderList[i]->BrokerOrderSeq == orderSeq){ found = true; break;}
+   }
+   if(!found){
+      cerr<<" 请求 | 报单不存在."<<endl; return;
+   } 
+   /*
+      CThostFtdcInputOrderActionField req;
+      memset(&req, 0, sizeof(req));
+      strcpy(req.BrokerID, m_appId);   //经纪公司代码 
+      strcpy(req.InvestorID, m_userId); //投资者代码
+      strcpy(req.ExchangeID, orderList[i]->ExchangeID);//交易所代码
+      strcpy(req.OrderSysID, orderList[i]->OrderSysID);//报单编号
+      req.ActionFlag = THOST_FTDC_AF_Delete;  //操作标志,撤单
+      int ret = m_pUserApi_td->ReqOrderAction(&req, ++requestId);
+      cerr<< " 请求 | 发送撤单..." <<((ret == 0)?"成功":"失败") << endl;
+    */
 }
 
 void TAP_CDECL Trade::OnRtnOrder( const TapAPIOrderInfoNotice *info ) {
@@ -568,7 +656,7 @@ void TAP_CDECL Trade::OnRspQryFill( TAPIUINT32 sessionID, TAPIINT32 errorCode, T
    } else {
       if(first_inquiry_trade == true) {
          first_inquiry_trade = false;
-         sleep(1);
+         //sleep(1);
 
          cerr<<"查询成交出错，或没有成交，首次查询投资者持仓明细: errorcode = " << errorCode << endl;
       }
@@ -583,20 +671,22 @@ void TAP_CDECL Trade::OnRtnFill( const TapAPIFillInfo *info ) {
    //新成交的合约，要订阅行情，才能准确计算账户盈亏信息
    bool find_instId_Trade = false;
    for(unsigned int i = 0; i< subscribe_inst_vec.size(); i++) {
-      if(strcmp(subscribe_inst_vec[i].c_str(), info->InstrumentID) == 0) {
+      if(strcmp(subscribe_inst_vec[i].c_str(), info->ContractNo) == 0) {
          find_instId_Trade = true;
          break;
       } 
    }
    if(!find_instId_Trade) {
       cerr<<"-------------------------------------------------------------OnRtnFill,新成交的合约，订阅行情："<<endl;
-      m_MDSpi->SubscribeMarketData(info->InstrumentID);
-      subscribe_inst_vec.push_back(info->InstrumentID);
+      TapAPIContract contract;
+      TAPIUINT32 sessionID = 0;
+      // TODO. @shilei
+      m_pmdApi->SubscribeQuote(&sessionID, &contract);
+      subscribe_inst_vec.push_back(info->ContractNo);
    }
    //新成交的合约，要构造合约对应交易信息的结构体的map,用count就可以判断
    bool find_trade_message_map_onTrade = false; 
-   for(map<string, trade_message*>::iterator iter = m_trade_message_map.begin(); iter!= m_trade_message_map.end();iter++)
-   {
+   for(map<string, trade_message*>::iterator iter = m_trade_message_map.begin(); iter!= m_trade_message_map.end();iter++) {
       if(strcmp( (iter->first).c_str(), info->ContractNo)==0) {
          find_trade_message_map_onTrade = true;
          break;
@@ -611,11 +701,15 @@ void TAP_CDECL Trade::OnRtnFill( const TapAPIFillInfo *info ) {
    }
 
    TapAPIFillInfo* trade_account = new TapAPIFillInfo();
-   memcpy(trade_account,  pTrade, sizeof(TapAPIFillInfo));
+   memcpy(trade_account,  info, sizeof(TapAPIFillInfo));
    bool founded=false;     
    unsigned int i=0;
    for(i=0; i<tradeList.size(); i++){
-      if(tradeList[i]->TradeID == trade_account->TradeID) {
+      /*
+       * TradeID 是 成交编号. OrderNo 是委托编码。TODO.
+       * @shilei.
+       */
+      if(tradeList[i]->OrderNo == trade_account->OrderNo) {
          founded=true;   break;
       }
    }
@@ -626,9 +720,150 @@ void TAP_CDECL Trade::OnRtnFill( const TapAPIFillInfo *info ) {
    int close_num_account_long = 0;//平仓的多单手数，如果有的话
    int close_num_account_short = 0;//平仓的空单手数，如果有的话
    //若是开仓单，则保存到tradeList_notClosed_account_long和tradeList_notClosed_account_short
-   if(trade_account->PositionEffect == '0') {
+   if(trade_account->PositionEffect == 'O') {
+      if (trade_account->MatchSide == 'B') { 
+         tradeList_notClosed_account_long.push_back(trade_account);
+         m_trade_message_map[trade_account->ContractNo]->holding_long = m_trade_message_map[trade_account->ContractNo]->holding_long + trade_account->MatchQty;
+         //多单今日持仓
+         m_trade_message_map[trade_account->ContractNo]->TodayPosition_long = m_trade_message_map[trade_account->ContractNo]->TodayPosition_long + trade_account->MatchQty; 
+      } else if (trade_account->MatchSide == 'S') {
+         tradeList_notClosed_account_short.push_back(trade_account);
+         m_trade_message_map[trade_account->ContractNo]->holding_short = m_trade_message_map[trade_account->ContractNo]->holding_short + trade_account->MatchQty;
+         //空单今日持仓
+         m_trade_message_map[trade_account->ContractNo]->TodayPosition_short = m_trade_message_map[trade_account->ContractNo]->TodayPosition_short + trade_account->MatchQty; 
+      }
+      //@TOMORO
+      // finished. 2017.02.10
+   } else if(trade_account->PositionEffect == 'C' || trade_account->PositionEffect == 'T') {
+      if(trade_account->MatchSide == 'S') {
+         close_num_account_long = trade_account->MatchQty;
+         for(vector<TapAPIFillInfo*>::iterator iter = tradeList_notClosed_account_long.begin(); iter != tradeList_notClosed_account_long.end(); iter++) {
+            if(strcmp(trade_account->ContractNo, (*iter)->ContractNo) == 0) {
+               if((*iter)->MatchQty < close_num_account_long) {
+                  close_num_account_long -= (*iter)->MatchQty;
+                  m_trade_message_map[trade_account->ContractNo]->closeProfit_long = m_trade_message_map[trade_account->ContractNo]->closeProfit_long + (trade_account->MatchPrice - (*iter)->MatchPrice) * (*iter)->MatchQty * m_instMessage_map[trade_account->ContractNo]->ContractSize;
+                  (*iter)->MatchQty = 0;
+               }
+            } else if (((*iter)->MatchQty == close_num_account_long)) {
+               (*iter)->MatchQty =0;
+               m_trade_message_map[trade_account->ContractNo]->closeProfit_long = m_trade_message_map[trade_account->ContractNo]->closeProfit_long + (trade_account->MatchPrice - (*iter)->MatchPrice) * close_num_account_long * m_instMessage_map[trade_account->ContractNo]->ContractSize; 
+               break;
+            } else if ((*iter)->MatchQty > close_num_account_long) {
+               (*iter)->MatchQty = (*iter)->MatchQty - close_num_account_long;
+               m_trade_message_map[trade_account->ContractNo]->closeProfit_long = m_trade_message_map[trade_account->ContractNo]->closeProfit_long + (trade_account->MatchPrice - (*iter)->MatchPrice) * close_num_account_long * m_instMessage_map[trade_account->ContractNo]->ContractSize; 
+               break;
+            }
+         }
 
-      //@TOMOROW
+         //多单持仓量
+         m_trade_message_map[trade_account->ContractNo]->holding_long = m_trade_message_map[trade_account->ContractNo]->holding_long - trade_account->MatchQty;
+         //今仓持仓量和昨仓量，要分上期所和非上期所
+         //今仓量和昨仓量，只对上期所有效
+         if(trade_account->PositionEffect == 'C')
+            m_trade_message_map[trade_account->ContractNo]->YdPosition_long = m_trade_message_map[trade_account->ContractNo]->YdPosition_long - trade_account->MatchQty;//昨仓
+         else if(trade_account->PositionEffect == 'T')
+            m_trade_message_map[trade_account->ContractNo]->TodayPosition_long = m_trade_message_map[trade_account->ContractNo]->TodayPosition_long - trade_account->MatchQty;//今仓 
+
+         //假设今仓5手，昨仓1，平仓都是发'1'，假设平仓2手，导致昨仓是-1，今仓还是5手，实际应该是今仓5-1，昨仓0
+         //3手昨仓，5手今仓，，'1'平仓了4手,导致昨仓是-1，今仓还是5手，实际应该是今仓5-1，昨仓0
+
+         if(m_trade_message_map[trade_account->ContractNo]->YdPosition_long < 0) {
+            m_trade_message_map[trade_account->ContractNo]->TodayPosition_long = m_trade_message_map[trade_account->ContractNo]->TodayPosition_long + m_trade_message_map[trade_account->ContractNo]->YdPosition_long;
+            m_trade_message_map[trade_account->ContractNo]->YdPosition_long = 0; 
+         }
+      } else if (trade_account->MatchSide == 'S') { 
+         close_num_account_short = trade_account->MatchQty;
+         for(vector<TapAPIFillInfo*>::iterator iter = tradeList_notClosed_account_short.begin(); iter != tradeList_notClosed_account_short.end(); iter++) {
+            if(strcmp(trade_account->ContractNo, (*iter)->ContractNo) == 0) {
+               if((*iter)->MatchQty < close_num_account_short) {
+                  close_num_account_short -= (*iter)->MatchQty;
+                  m_trade_message_map[trade_account->ContractNo]->closeProfit_short = m_trade_message_map[trade_account->ContractNo]->closeProfit_short + ((*iter)->MatchPrice - trade_account->MatchPrice) * (*iter)->MatchQty * m_instMessage_map[trade_account->ContractNo]->ContractSize;
+                  (*iter)->MatchQty = 0;
+               } else if((*iter)->MatchQty == close_num_account_short) {
+                  (*iter)->MatchQty = 0;
+                  m_trade_message_map[trade_account->ContractNo]->closeProfit_short = m_trade_message_map[trade_account->ContractNo]->closeProfit_short + ((*iter)->MatchPrice - trade_account->MatchPrice) * close_num_account_short * m_instMessage_map[trade_account->ContractNo]->ContractSize;
+                  break;
+               } else if((*iter)->MatchQty > close_num_account_short) {
+                  (*iter)->MatchQty = (*iter)->MatchQty - close_num_account_short;
+                  m_trade_message_map[trade_account->ContractNo]->closeProfit_short = m_trade_message_map[trade_account->ContractNo]->closeProfit_short + ((*iter)->MatchPrice - trade_account->MatchPrice) * close_num_account_short * m_instMessage_map[trade_account->ContractNo]->ContractSize;
+                  break;
+               }
+            }
+         }
+
+         //空单持仓量
+         m_trade_message_map[trade_account->ContractNo]->holding_short = m_trade_message_map[trade_account->ContractNo]->holding_short - trade_account->MatchQty;
+         if(trade_account->PositionEffect == 'C')
+            m_trade_message_map[trade_account->ContractNo]->YdPosition_short = m_trade_message_map[trade_account->ContractNo]->YdPosition_short - trade_account->MatchQty;//昨仓
+         else if(trade_account->PositionEffect == 'T')
+            m_trade_message_map[trade_account->ContractNo]->TodayPosition_short = m_trade_message_map[trade_account->ContractNo]->TodayPosition_short - trade_account->MatchQty;//今仓 
+
+         if(m_trade_message_map[trade_account->ContractNo]->YdPosition_short < 0) {
+            m_trade_message_map[trade_account->ContractNo]->TodayPosition_short = m_trade_message_map[trade_account->ContractNo]->TodayPosition_short + m_trade_message_map[trade_account->ContractNo]->YdPosition_short;
+            m_trade_message_map[trade_account->ContractNo]->YdPosition_short = 0; 
+         }
+      }
+   }
+}
+
+void Trade::PrintOrders(){
+   /*
+      CThostFtdcOrderField* pOrder; 
+      for(unsigned int i=0; i<orderList.size(); i++){
+      pOrder = orderList[i];
+      cerr<<" 报单 | 合约:"<<pOrder->InstrumentID
+      <<" 方向:"<<MapDirection(pOrder->Direction,false)
+      <<" 开平:"<<MapOffset(pOrder->CombOffsetFlag[0],false)
+      <<" 价格:"<<pOrder->LimitPrice
+      <<" 数量:"<<pOrder->VolumeTotalOriginal
+      <<" 序号:"<<pOrder->BrokerOrderSeq 
+      <<" 报单编号:"<<pOrder->OrderSysID
+      <<" 状态:"<<pOrder->StatusMsg<<endl;
+      }
+      SetEvent(g_hEvent);
+    */
+}
+
+
+
+void Trade::PrintTrades(){
+   /*
+      CThostFtdcTradeField* pTrade; 
+      for(unsigned int i=0; i<tradeList.size(); i++){
+      pTrade = tradeList[i];
+      cerr<<" 成交 | 合约:"<< pTrade->InstrumentID 
+      <<" 方向:"<<MapDirection(pTrade->Direction,false)
+      <<" 开平:"<<MapOffset(pTrade->OffsetFlag,false) 
+      <<" 价格:"<<pTrade->Price
+      <<" 数量:"<<pTrade->Volume
+      <<" 报单编号:"<<pTrade->OrderSysID
+      <<" 成交编号:"<<pTrade->TradeID<<endl;
+      }
+      SetEvent(g_hEvent);
+    */
+}
+
+void Trade::CancelOrder(const string& MDtime, double MDprice) {
+   string InsertTime_str;//委托时间
+   int MDtime_last2;
+   if(orderList.size() > 0) {
+      for(vector<TapAPIOrderInfo*>::iterator iter = orderList.begin(); iter != orderList.end(); iter++) {
+         if((*iter)->OrderState == '3' || (*iter)->OrderState == '1') {
+            if((*iter)->OrderState == '3' || (*iter)->OrderState == '1') {
+               InsertTime_str = (*iter)->OrderInsertTime;
+               // TODO. @shilei
+               MDtime_last2 = atoi(MDtime.substr(6, 2).c_str());
+               if( MDtime_last2 < atoi(InsertTime_str.substr(6, 2).c_str()))
+                  MDtime_last2 += 60;
+               if(MDtime_last2 - atoi(InsertTime_str.substr(6, 2).c_str()) >= 6) {
+                  cerr<<"撤单:"<<endl; //>>>>
+                  // TODO. @shilei
+                  orderAction(1);
+                  //orderAction((*iter)->ExchangeNo); 
+               }
+            }
+         }
+      }
    }
 }
 
@@ -871,22 +1106,13 @@ void Trade::printTrade_message_map() {
 
 void Trade::forceClose() {
    cout << "-----------------------------------in Force Close---------------" << endl;
-   /*
-      TThostFtdcInstrumentIDType    instId;//合约
-      TThostFtdcDirectionType       dir;//方向,'0'买，'1'卖
-      TThostFtdcCombOffsetFlagType  kpp;//开平，"0"开，"1"平,"3"平今
-      TThostFtdcPriceType           price;//价格，0是市价,上期所不支持
-      TThostFtdcVolumeType          vol;//数量
-    */
-   string instId;
-   int dir;
-   char* kpp;
-   int price;
-   int vol;
+   char instId[32];//合约
+   char dir;//方向,'0'买，'1'卖
+   char kpp[5];//开平，"0"开，"1"平,"3"平今
+   double price;//价格，0是市价,上期所不支持
+   int vol;//数量
 
-   for(map<string, trade_message*>::iterator iter = m_trade_message_map.begin(); iter != m_trade_message_map.end(); iter++)
-   {
-
+   for(map<string, trade_message*>::iterator iter = m_trade_message_map.begin(); iter != m_trade_message_map.end(); iter++) { 
       cerr<<"合约代码:"<< iter->first<<","<<iter->second->instId<<endl
         <<" 多单持仓量:"<<iter->second->holding_long<<endl
         <<" 空单持仓量:"<<iter->second->holding_short<<endl
@@ -902,7 +1128,90 @@ void Trade::forceClose() {
 
       //平多
       // TODO: 
+      if(iter->second->holding_long > 0 ) {
+         strcpy(instId, iter->second->instId.c_str());
+         dir = 'S';
+         // TODO. @shilei
+         price = iter->second->lastPrice - 5 * m_instMessage_map[instId]->CommodityTickSize;
+
+         cerr<<"非上期所多单平仓:"<<endl; 
+         strcpy(kpp, "C");
+         vol = iter->second->holding_long;
+         insertOrder(instId, dir, kpp, price, vol);
+      }
    }
+}
+
+double Trade::sendCloseProfit() {
+   double closeProfit_account = 0;
+
+   for(map<string, trade_message*>::iterator iter = m_trade_message_map.begin(); iter != m_trade_message_map.end(); iter++) {
+      closeProfit_account = closeProfit_account + iter->second->closeProfit_long + iter->second->closeProfit_short;
+   }
+   m_closeProfit = closeProfit_account; 
+   return closeProfit_account;
+}
+
+//计算账户的浮动盈亏，以开仓价算,可以限定持仓量大于0的，浮动盈亏计算完保存到m_trade_message_map
+////如果要用到整个账户的浮动盈亏，是不是要等到所有合约都更新后才行
+double Trade::sendOpenProfit_account(string instId, double lastPrice) {
+   double openProfit_account_long = 0, openProfit_account_short = 0, openProfit_account_all = 0;
+   //多单的浮动盈亏
+   for(vector<TapAPIFillInfo*>::iterator iter = tradeList_notClosed_account_long.begin(); iter != tradeList_notClosed_account_long.end(); iter++) {
+      if(strcmp(instId.c_str(), (*iter)->ContractNo)==0)
+         openProfit_account_long = openProfit_account_long + (lastPrice - (*iter)->MatchPrice) * (*iter)->MatchQty * m_instMessage_map[(*iter)->ContractNo]->ContractSize; 
+   }
+
+   if(m_trade_message_map.count(instId) > 0)//该合约有持仓
+      m_trade_message_map[instId]->OpenProfit_long = openProfit_account_long;//txt中的合约没有持仓，则行情回调不能调用
+
+   //空单的浮动盈亏
+   for(vector<TapAPIFillInfo*>::iterator iter = tradeList_notClosed_account_short.begin(); iter != tradeList_notClosed_account_short.end(); iter++) {
+      if(strcmp(instId.c_str(), (*iter)->ContractNo)==0)
+         openProfit_account_short = openProfit_account_short + ((*iter)->MatchPrice - lastPrice) * (*iter)->MatchQty * m_instMessage_map[(*iter)->ContractNo]->ContractSize;
+   }
+
+   if(m_trade_message_map.count(instId) > 0)//该合约有持仓
+      m_trade_message_map[instId]->OpenProfit_short = openProfit_account_short;
+
+   for(map<string, trade_message*>::iterator iter = m_trade_message_map.begin(); iter != m_trade_message_map.end(); iter++) {
+      openProfit_account_all = openProfit_account_all + iter->second->OpenProfit_long + iter->second->OpenProfit_short;
+   }
+
+   m_OpenProfit = openProfit_account_all;
+   return openProfit_account_all;
+}
+
+void Trade::showInstMessage() {
+   for(map<string, TapAPICommodityInfo*>::iterator iter = m_instMessage_map.begin(); iter != m_instMessage_map.end(); iter++) {
+      cerr<<iter->first<<","<<iter->second->CommodityNo<<","<<iter->second->CommodityTickSize<<","<<iter->second->ContractSize<<endl; 
+   }
+
+   cerr<<"m_instMessage_map.size():"<<m_instMessage_map.size()<<endl; 
+}
+
+//更新合约的最新价
+void Trade::setLastPrice(string instID, double price) {
+   m_trade_message_map[instID]->lastPrice = price; 
+} 
+
+int Trade::send_trade_message_map_KeyNum(string instID) {
+   return m_trade_message_map.count(instID); 
+}
+
+int Trade::SendHolding_long(string instID) { 
+   //cerr<<"m_trade_message_map.count(instID):"<<m_trade_message_map.count(instID)<<endl;>
+   if(m_trade_message_map.count(instID) == 0)
+      return 0;
+   else
+      return m_trade_message_map[instID]->holding_long; 
+}
+
+int Trade::SendHolding_short(string instID) {
+   if(m_trade_message_map.count(instID) == 0)
+      return 0;
+   else
+      return m_trade_message_map[instID]->holding_short; 
 }
 
 ITapTradeAPI *Trade::createTapTradeApi(TAPIAUTHCODE authCode, TAPISTR_300 keyOperationLogPath, int errorCode) {
@@ -911,6 +1220,7 @@ ITapTradeAPI *Trade::createTapTradeApi(TAPIAUTHCODE authCode, TAPISTR_300 keyOpe
    strcpy(stAppInfo.AuthCode, authCode);
    strcpy(stAppInfo.KeyOperationLogPath, keyOperationLogPath);
    ITapTradeAPI *pApi = CreateITapTradeAPI(&stAppInfo, iResult);
+   SetITapTradeAPILogLevel(APILOGLEVEL_ERROR);
    errorCode = iResult;
    return pApi;
 }

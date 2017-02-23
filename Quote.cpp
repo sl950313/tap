@@ -4,13 +4,20 @@
 //#include <Windows.h>
 #include <iostream>
 #include <string.h>
+#include "strategy.h"
 
 using namespace std;
+
+extern Strategy* g_strategy;
 
 Quote::Quote(void):
 	m_pApi(NULL),
 	m_bIsAPIReady(false),
-	is_last(false) {}
+	is_last(false) {
+	   memset(username, 0, 64);
+	   memset(passwd, 0, 64);
+	   memset(ip, 0, 32);
+	}
 
 
 Quote::~Quote(void) {}
@@ -30,20 +37,31 @@ void Quote::setAccount(char *_username, char *_passwd) {
    strcpy(passwd, _passwd);
 }
 
+void Quote::setTreatys(vector<treaty *> &treatys) {
+   all_treatys = treatys;
+   cout << "all treatys size : " << all_treatys.size() << endl;
+
+   for (size_t i = 0; i < all_treatys.size(); ++i) {
+      all_treatys[i]->startPthread();
+   }
+}
+
 /*
  * @shilei.
  * 2017.01.09
  */
-void Quote::init() {
+int Quote::init() {
    if(NULL == m_pApi) {
       cout << "Error: m_pApi is NULL." << endl;
-      return;
+      return -1;
    }
    TAPIINT32 iErr = TAPIERROR_SUCCEED;
    iErr = m_pApi->SetHostAddress(ip, port);
+   cout << "IP : " << ip << endl;//>>>>>>
+   cout << "Port : " << port << endl;//>>>>>>
    if(TAPIERROR_SUCCEED != iErr) {
       cout << "SetHostAddress Error:" << iErr <<endl;
-      return;
+      return -1;
    }
    TapAPIQuoteLoginAuth loginAuth;
    memset(&loginAuth, 0, sizeof(loginAuth));
@@ -51,18 +69,28 @@ void Quote::init() {
    strcpy(loginAuth.Password, passwd);
    loginAuth.ISModifyPassword = APIYNFLAG_NO;
    loginAuth.ISDDA = APIYNFLAG_NO;
+   cout << "Username : " << loginAuth.UserNo << endl;//>>>>>>
+   cout << "Password : " << loginAuth.Password << endl;//>>>>>>
 
    // TODO:
    // 登陆.
    bool err = login(&loginAuth);
    if (!err) {
       cerr << "login error." << endl;
-      return ;
+      return -1;
    }
    cout << "login success" << endl;
 
+   QryCommodity();
+   QryContract();
    // 订阅行情.
-   //SubscribeQuote();
+   /*
+   char* exchange_no = "NYMEX";
+   char *commodity_no = "CL";
+   char *contract_no = "1706";
+   */
+   SubscribeQuote();
+   return 0;
 }
 
 
@@ -127,7 +155,7 @@ void Quote::changePassword(char *old_passwd, char *new_passwd) {
    TapAPIChangePasswordReq req;
    strcpy(req.OldPassword, old_passwd);
    strcpy(req.NewPassword, new_passwd);
-   m_pApi->ChangePassword(&sessionID, &req);
+   //m_pApi->ChangePassword(&sessionID, &req);
 }
 
 void TAP_CDECL Quote::OnRspChangePassword(TAPIUINT32 sessionID, TAPIINT32 errorCode) {
@@ -140,8 +168,8 @@ void TAP_CDECL Quote::OnRspChangePassword(TAPIUINT32 sessionID, TAPIINT32 errorC
  */
 void Quote::QryExchange() {
    unsigned int *sessionID = 0;
-   int errcode = m_pApi->QryExchange(sessionID);
-   isErrorCode(errcode);  
+   //int errcode = m_pApi->QryExchange(sessionID);
+   //isErrorCode(errcode);  
 }
 
 /*
@@ -165,18 +193,25 @@ void TAP_CDECL Quote::OnRspQryExchange(TAPIUINT32 sessionID, TAPIINT32 errorCode
 bool Quote::QryCommodity() {
    unsigned int err, session;
    if ((err = m_pApi->QryCommodity(&session)) != 0) {
+      cout << "查询品种出错" << endl;//>>>>
       return false;
    }
+   m_Event.WaitEvent();
    return true;
 }
 
 void TAP_CDECL Quote::OnRspQryCommodity(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPIQuoteCommodityInfo *info) {
-   cout << __FUNCTION__ << " is called." << endl;
+   //cout << __FUNCTION__ << " is called." << endl;
    if (errorCode != 0) {
       cerr << "QryCommodity error. Error Code : " << errorCode << endl;
       return ;
    }
-   cout << "isLast : " << isLast << endl;//>>>>>>
+   
+   if (isLast == 'Y') {
+      cout << "CommodityName : " << info->CommodityName << endl;//>>>>>
+      cout << "isLast : " << isLast << endl;//>>>>>>
+      m_Event.SignalEvent();
+   }
    // TODO:
 }
 
@@ -188,17 +223,21 @@ void TAP_CDECL Quote::OnRspQryCommodity(TAPIUINT32 sessionID, TAPIINT32 errorCod
 void Quote::QryTradingTimeBucketOfCommodity() {
    unsigned int *sessionID;
    TapAPICommodity *qryReq;
-   int err = m_pApi->QryTradingTimeBucketOfCommodity(sessionID, qryReq);
-   isErrorCode(err);
+   //int err = m_pApi->QryTradingTimeBucketOfCommodity(sessionID, qryReq);
+   //isErrorCode(err);
 }
 
+/*
 void TAP_CDECL Quote::OnRspQryTimeBucketOfCommodity(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPITimeBucketOfCommodityInfo *info) {
    cout << __FUNCTION__ << " is called." << endl;
 }
+*/
 
+/*
 void TAP_CDECL Quote::OnRtnTimeBucketOfCommodity(const TapAPITimeBucketOfCommodityInfo *info) {
    cout << __FUNCTION__ << " is called." << endl;
 }
+*/
 
 /*
  * @shilei. TODO
@@ -206,10 +245,27 @@ void TAP_CDECL Quote::OnRtnTimeBucketOfCommodity(const TapAPITimeBucketOfCommodi
  * 2017.01.09
  */
 void Quote::QryContract() {
+   TAPIUINT32 sessionID = 0;
+   TapAPICommodity qryReq;
+   memset(&qryReq, 0, sizeof(qryReq));
+   strcpy(qryReq.ExchangeNo, "HKEX");
+   strcpy(qryReq.CommodityNo, "HSI");
+   qryReq.CommodityType = TAPI_COMMODITY_TYPE_FUTURES;
+   cout << "开始查询合约..." << endl;//>>>>
+   //strcpy(qryReq.ExchangeNo, "HKEX");
+   int ret = m_pApi->QryContract(&sessionID, &qryReq);
+   cout << "合约查询" << ((ret == 0) ? "成功" : "失败") << "..." << endl;//>>>>>>>>
+   if (!ret) m_Event.WaitEvent();
 }
 
 void TAP_CDECL Quote::OnRspQryContract(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPIQuoteContractInfo *info) {
-   cout << __FUNCTION__ << " is called." << endl;
+   //cout << __FUNCTION__ << " is called." << endl;
+   if (!errorCode && info) {
+      cout << "contract : " << info->Contract.Commodity.CommodityNo << info->Contract.ContractNo1 << endl;//>>>>>>>
+   }
+   if (isLast == 'Y') {
+      m_Event.SignalEvent();
+   }
 }
 
 void TAP_CDECL Quote::OnRtnContract(const TapAPIQuoteContractInfo *info) {
@@ -220,29 +276,32 @@ void TAP_CDECL Quote::OnRtnContract(const TapAPIQuoteContractInfo *info) {
  * @shilei. 
  * 2017.01.09
  */
-bool Quote::SubscribeQuote(char *exchange_no, TAPICommodityType type, char *commodity_no, char *contract_no) {
-   unsigned int sessionID = 0;
-   TapAPIContract contract;
-   memset(&contract, 0, sizeof(contract));
-   strcpy(contract.Commodity.ExchangeNo, exchange_no);
-   contract.Commodity.CommodityType = type;
-   strcpy(contract.Commodity.CommodityNo, commodity_no);
-   strcpy(contract.ContractNo1, contract_no);
-   contract.CallOrPutFlag1 = TAPI_CALLPUT_FLAG_NONE;
-   contract.CallOrPutFlag2 = TAPI_CALLPUT_FLAG_NONE;
+//bool Quote::SubscribeQuote(char *exchange_no, TAPICommodityType type, char *commodity_no, char *contract_no) {
+bool Quote::SubscribeQuote() {
+   TAPIUINT32 sessionID = 0;
 
-   cout << "exchange_no : " << exchange_no << endl
-     << "type : " << type << endl << "commodity_no : " << commodity_no << endl
-     << "contract_no:" << contract_no << endl
-     << "CallOrPutFlag1 : " << contract.CallOrPutFlag1 << endl
-     << "CallOrPutFlag2 : " << contract.CallOrPutFlag2 << endl;
+   for (size_t i = 0; i < all_treatys.size(); ++i) {
+      TapAPIContract contract;
+      memset(&contract, 0, sizeof(contract));
+      strcpy(contract.Commodity.ExchangeNo, all_treatys[i]->exchange_name);
+      contract.Commodity.CommodityType = 'F';
+      strcpy(contract.Commodity.CommodityNo, all_treatys[i]->commodity);
+      strcpy(contract.ContractNo1, all_treatys[i]->contract_no);
+      contract.CallOrPutFlag1 = TAPI_CALLPUT_FLAG_NONE;
+      contract.CallOrPutFlag2 = TAPI_CALLPUT_FLAG_NONE;
 
-   int err = m_pApi->SubscribeQuote(&sessionID, &contract);
-   if (err != TAPIERROR_SUCCEED) {
-      cout << "SubscribeQuote Error:" << err <<endl;
-      return false;
+      cout << "exchange_no : " << contract.Commodity.ExchangeNo 
+        << ",type : " << 'F' << ",commodity_no : " << contract.Commodity.CommodityNo << 
+        ",contract_no:" << contract.ContractNo1 << endl;
+
+      int err = m_pApi->SubscribeQuote(&sessionID, &contract);
+      //cout << "here?" << endl;//>>>>
+      if (err != TAPIERROR_SUCCEED) {
+         cout << "SubscribeQuote Error:" << err <<endl;
+         return false;
+      }
+      cout << contract.Commodity.ExchangeNo << contract.Commodity.CommodityNo << contract.ContractNo1 << "订阅请求发送成功" << endl; 
    }
-   cout << "订阅请求发送成功" << endl; 
    /*
     * @shilei. 这儿不需要等待订阅成功，因为如果不订阅成功救不回有回调.
     * 2017.01.09
@@ -300,32 +359,55 @@ void TAP_CDECL Quote::OnRspUnSubscribeQuote(TAPIUINT32 sessionID, TAPIINT32 erro
 }
 
 void TAP_CDECL Quote::OnRtnQuote(const TapAPIQuoteWhole *info) {
-   if (NULL != info)
-   {
-      cout << "行情更新:" 
-        << info->DateTimeStamp << " "
-        << info->Contract.Commodity.ExchangeNo << " "
-        << info->Contract.Commodity.CommodityType << " "
-        << info->Contract.Commodity.CommodityNo << " "
-        << info->Contract.ContractNo1 << " "
-        << info->QLastPrice
-        // ...		
-        <<endl;
+   if (info) {
+      /*
+         cout << "行情更新:" 
+         << info->DateTimeStamp << " "
+         << info->Contract.Commodity.ExchangeNo << " "
+         << info->Contract.Commodity.CommodityType << " "
+         << info->Contract.Commodity.CommodityNo << " "
+         << info->Contract.ContractNo1 << " "
+         << info->QLastPrice
+      // ...		
+      <<endl;
+       */
+      for (size_t i = 0; i < all_treatys.size(); ++i) {
+         if (isTheTreaty(all_treatys[i], (TapAPIQuoteWhole *)info)) {
+            cout << "保存行情：" << info->Contract.Commodity.CommodityNo << info->Contract.ContractNo1 << "," << info->DateTimeStamp << ",最新价:" << info->QLastPrice << ",涨停价:" << info->QLimitUpPrice << ",跌停价:" << info->QLimitDownPrice << endl;
+            memcpy(&(all_treatys[i]->quotewhole), info, sizeof(TapAPIQuoteWhole));
+            all_treatys[i]->ev.SignalEvent(); 
+            /*
+               pthread_mutex_lock(&(all_treatys[i]->queue_mutex)); 
+               all_treatys[i]->quote_queue.push(info_t);
+               pthread_mutex_unlock(&(all_treatys[i]->queue_mutex))
+             */
+            break;
+         }
+      }
+      g_strategy->OnTickData((TapAPIQuoteWhole *)info);
    }
 }
 
-void Quote::QryHisQuote(TapAPIHisQuoteQryReq *qryReq) {
+bool Quote::isTheTreaty(treaty *tv, TapAPIQuoteWhole *info) {
+   return ((strcmp(tv->exchange_name, info->Contract.Commodity.ExchangeNo) == 0) && (strcmp(tv->commodity, info->Contract.Commodity.CommodityNo) == 0) && (strcmp(tv->contract_no, info->Contract.ContractNo1) == 0)) ? true : false;
+}
+
+/*
+   void Quote::QryHisQuote(TapAPIHisQuoteQryReq *qryReq) {
    unsigned int sessionID = 0;
    int err = m_pApi->QryHisQuote(&sessionID, qryReq);
    if (err != 0) {
-      cerr << "error in QryHisQuote " << endl;
+   cerr << "error in QryHisQuote " << endl;
    }
    cout << "QryHisQuote success" << endl;
-}
+   }
+ */
 
-void TAP_CDECL Quote::OnRspQryHisQuote(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPIHisQuoteQryRsp *info) {
+/*
+   void TAP_CDECL Quote::OnRspQryHisQuote(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPIHisQuoteQryRsp *info) {
    cout << __FUNCTION__ << " is called." << endl;
-}
+   }
+ */
 
 bool Quote::isErrorCode(int err_code) {
    if (err_code != 0) {
@@ -341,6 +423,7 @@ ITapQuoteAPI *Quote::createTapQuoteApi(TAPIAUTHCODE authCode, TAPISTR_300 keyOpe
    strcpy(stAppInfo.AuthCode, authCode);
    strcpy(stAppInfo.KeyOperationLogPath, keyOperationLogPath);
    ITapQuoteAPI *pApi = CreateTapQuoteAPI(&stAppInfo, iResult);
+   SetTapQuoteAPILogLevel(APILOGLEVEL_ERROR);
    errcode = iResult;
    return pApi;
 }

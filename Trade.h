@@ -76,10 +76,10 @@ public:
    void QryExchange();
    void QryCommodity();
 
-   void insertOrder(); // 报单录入请求
-   void orderAction(); // 报单操作请求
+   void insertOrder(char *instId, char dir, char *kpp, double price, int vol); // 报单录入请求
+   void orderAction(int orderSeq); // 报单操作请求
    void printTrades(); // 打印成交记录
-   void CancelOrder(); // 撤单，如需追单，可在报单回报里面等撤单成功后再进行
+   void CancelOrder(const string& MDtime, double MDprice); // 撤单，如需追单，可在报单回报里面等撤单成功后再进行
 
    void printTrade_message_map();
    void forceClose();
@@ -90,6 +90,8 @@ public:
 
    void showInstMessage(); //打印所有合约信息
    void setLastPrice(string instID, double price); //更新合约的最新价
+   void PrintOrders();
+   void PrintTrades();
 
    int send_trade_message_map_KeyNum(string instID); //合约交易信息结构体的map，KEY的个数，为0表示没有该合约的交易信息，即该合约没有持仓(开仓后已经平仓的，KEY不为0）
 
@@ -108,6 +110,8 @@ private:
    SimpleEvent m_Event;
    bool m_bIsAPIReady;
 
+   vector<string> subscribe_inst_vec;//需要订阅行情的合约，即程序启动前有持仓过的合约
+
    bool first_inquiry_order;//是否首次查询报单
    bool first_inquiry_trade;//是否首次查询成交
    bool firs_inquiry_Detail;//是否首次查询持仓明细
@@ -125,8 +129,12 @@ private:
    vector<TapAPIFillInfo*> tradeList;//成交记录，全部合约
 
    string m_Instrument_all;//所有合约代码合在一起
-   map<string, TapAPITradeContractInfo *> m_instMessage_map;//保存合约信息的map
+   map<string, TapAPICommodityInfo *> m_instMessage_map;//保存合约信息的map
    map<string, trade_message*> m_trade_message_map;//合约交易信息结构体的map
+   int contract_nums;
+
+   vector<TapAPIFillInfo*> tradeList_notClosed_account_long;//未平仓的多单成交记录,整个账户，全部合约
+   vector<TapAPIFillInfo*> tradeList_notClosed_account_short;//未平仓的空单成交记录,整个账户，全部合约
 
    char ip[64];
    int port;

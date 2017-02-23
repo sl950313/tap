@@ -48,10 +48,19 @@ struct trade_message
 	double closeProfit_short;//空单平仓盈亏
 	double OpenProfit_short;//空单浮动盈亏
 
+}; 
+
+enum LOGLEVEL {
+   INFO = 1,
+   WARNING,
+   ERROR,
+   DEBUG
 };
 
-
-
+struct start_end_time {
+   std::string start_time;
+   std::string end_time;
+};
 
 struct FutureData//行情结构体定义
 {

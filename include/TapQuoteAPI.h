@@ -24,7 +24,7 @@ public:
 	*			登录期间的数据发送情况和登录的回馈信息传递到此回调函数中。
 	* @param[in] errorCode 返回错误码,0表示成功。
 	* @param[in] info 登陆应答信息，如果errorCode!=0，则info=NULL。
-	* @attention	该回调返回成功，说明用户登录成功。但是不代表API准备完毕。
+	* @attention	该回调返回成功，说明用户登录成功。但是不代表API准备完毕。需要等到OnAPIReady才能进行查询与订阅请求。
 	* @ingroup G_Q_Login
 	*/
 	virtual void TAP_CDECL OnRspLogin(TAPIINT32 errorCode, const TapAPIQuotLoginRspInfo *info) = 0;
@@ -39,32 +39,14 @@ public:
 	/**
 	* @brief	API和服务失去连接的回调
 	* @details	在API使用过程中主动或者被动与服务器服务失去连接后都会触发此回调通知用户与服务器的连接已经断开。
-	* @param[in] reasonCode 断开原因代码。 \n
+	* @param[in] reasonCode 断开原因代码。具体原因请参见错误码列表 \n
 	* @ingroup G_Q_Disconnect
 	*/
 	virtual void TAP_CDECL OnDisconnect(TAPIINT32 reasonCode) = 0;
 	/**
-	* @brief 通知用户密码修改结果
-	* @param[in] sessionID 修改密码的会话ID,和ChangePassword返回的会话ID对应。
-	* @param[in] errorCode 返回错误码，0表示成功。
-	* @note 暂未实现
-	* @ingroup G_Q_Password
-	*/
-	virtual void TAP_CDECL OnRspChangePassword(TAPIUINT32 sessionID, TAPIINT32 errorCode) = 0;
-	/**
-	* @brief 返回交易所信息
-	* @param[in] sessionID 请求的会话ID；
-	* @param[in] errorCode 错误码，当errorCode!=0时,info为NULL；
-	* @param[in] isLast 标示是否是最后一批数据；
-	* @param[in] info 返回的交易所信息。
-	* @attention  不要修改和删除info所指示的数据；函数调用结束，参数不再有效。
-	* @ingroup G_Q_Exchange
-	*/
-	virtual void TAP_CDECL OnRspQryExchange(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPIExchangeInfo *info) = 0;
-	/**
 	* @brief	返回所有品种信息。
 	* @details	此回调接口用于向用户返回得到的所有品种信息。
-	* @param[in] sessionID 请求的会话ID，和GetAllCommodities()函数返回对应；
+	* @param[in] sessionID 请求的会话ID
 	* @param[in] errorCode 错误码，当errorCode!=0时,info为NULL；
 	* @param[in] isLast 标示是否是最后一批数据；
 	* @param[in] info 返回的信息数组的起始指针。
@@ -72,23 +54,6 @@ public:
 	* @ingroup G_Q_Commodity
 	*/
 	virtual void TAP_CDECL OnRspQryCommodity(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPIQuoteCommodityInfo *info) = 0;
-	/**
-	* @brief 返回品种的有效交易时段
-	* @param[in] sessionID 请求的会话ID
-	* @param[in] errorCode 错误码，当errorCode!=0时,info为NULL；
-	* @param[in] isLast 标示是否是最后一批数据；
-	* @param[in] info 是返回的信息数组的起始指针。
-	* @attention  不要修改和删除info指示的数据；函数调用结束，参数不再有效。
-	* @ingroup G_Q_TradingTimeBucket
-	*/
-	virtual void TAP_CDECL OnRspQryTimeBucketOfCommodity(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPITimeBucketOfCommodityInfo *info) = 0;
-	/**
-	* @brief 商品有效交易时段变化的通知
-	* @param[in] info	商品有效交易时段信息
-	* @attention 不要修改和删除info所指示的数据；函数调用结束，参数不再有效。
-	* @ingroup G_Q_TradingTimeBucket
-	*/
-	virtual void TAP_CDECL OnRtnTimeBucketOfCommodity(const TapAPITimeBucketOfCommodityInfo *info) = 0;
 	/**
 	* @brief 返回系统中合约信息
 	* @param[in] sessionID 请求的会话ID；
@@ -100,19 +65,13 @@ public:
 	*/
 	virtual void TAP_CDECL OnRspQryContract(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPIQuoteContractInfo *info) = 0;
 	/**
-	* @brief 通知合约添加
-	* @param[in] info		指向返回的新增合约
-	* @attention 不要修改和删除info所指示的数据；函数调用结束，参数不再有效。
-	* @ingroup G_Q_Contract
-	*/
-	virtual void TAP_CDECL OnRtnContract(const TapAPIQuoteContractInfo *info) = 0;
-	/**
 	* @brief	返回订阅行情的全文。
 	* @details	此回调接口用来返回订阅行情的全文。全文为当前时间的行情信息。
 	* @param[in] sessionID 请求的会话ID；
 	* @param[in] isLast 标示是否是最后一批数据；
 	* @param[in] errorCode 错误码，当errorCode!=0时,info为NULL；
 	* @param[in] info		指向返回的信息结构体。当errorCode不为0时，info为空。
+	* @attention  不要修改和删除info所指示的数据；函数调用结束，参数不再有效。
 	* @ingroup G_Q_Quote
 	*/
 	virtual void TAP_CDECL OnRspSubscribeQuote(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPIQuoteWhole *info) = 0;
@@ -122,6 +81,7 @@ public:
 	* @param[in] errorCode 错误码，当errorCode!=0时,info为NULL；
 	* @param[in] isLast 标示是否是最后一批数据；
 	* @param[in] info		指向返回的信息结构体。当errorCode不为0时，info为空。
+	* @attention  不要修改和删除info所指示的数据；函数调用结束，参数不再有效。
 	* @ingroup G_Q_Quote
 	*/
 	virtual void TAP_CDECL OnRspUnSubscribeQuote(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPIContract *info) = 0;
@@ -133,17 +93,6 @@ public:
 	* @ingroup G_Q_Quote
 	*/
 	virtual void TAP_CDECL OnRtnQuote(const TapAPIQuoteWhole *info) = 0;
-	/**
-	* @brief 返回查询到的历史行情。
-	* @param[in] sessionID 请求的会话ID；
-	* @param[in] errorCode 错误码，当errorCode!=0时，info为NULL；
-	* @param[in] isLast 标示是否是最后一批数据；
-	* @param[in] info 返回的历史行情信息。
-	* @attention  函数调用结束，参数不再有效。
-	* @attention 目前易盛不提供历史行情服务，该接口可能返回数据为空。
-	* @ingroup G_Q_HisQuote
-	*/
-	virtual void TAP_CDECL OnRspQryHisQuote(TAPIUINT32 sessionID, TAPIINT32 errorCode, TAPIYNFLAG isLast, const TapAPIHisQuoteQryRsp *info) = 0;
 };
 
 //TapQuoteAPI 对外功能接口。包含了用户可以调用的功能函数。
@@ -162,7 +111,7 @@ public:
 	*/
 	virtual TAPIINT32 TAP_CDECL SetAPINotify(ITapQuoteAPINotify *apiNotify) = 0;
 	/**
-	* @brief 设置服务器的IP地址和端口。
+	* @brief 设置服务器的IP地址和端口。等到调用Login时真正发起连接。
 	* @param[in] IP   IP地址
 	* @param[in] port 端口号
 	* @operationtype 同步操作
@@ -188,31 +137,10 @@ public:
 	/**
 	* @brief	断开和服务器的链路连接。
 	* @details	调用函数后API将登出并断开与服务器的连接。
-	* @operationtype 同步操作
+	* @operationtype 异步操作
 	* @ingroup G_Q_Disconnect
 	*/
 	virtual TAPIINT32 TAP_CDECL Disconnect() = 0;
-	/**
-	* @brief	修改密码。
-	* @details	成功后用户密码将被设置成newPassword。
-	* @param[out]	sessionID 返回此次修改密码的会话ID;
-	* @param[in]	req 请求修改密码的结构体指针
-	* @retval 0 成功
-	* @retval 非0 错误码
-	* @operationtype 异步操作
-	* @note 暂未实现
-	* @ingroup G_Q_Password
-	*/
-	virtual TAPIINT32 TAP_CDECL ChangePassword(TAPIUINT32 *sessionID, const TapAPIChangePasswordReq *req) = 0;
-	/**
-	* @brief 查询交易所信息
-	* @param[out] sessionID	返回请求的会话ID。
-	* @retval 0 请求成功
-	* @retval 非0 错误码
-	* @operationtype 异步操作
-	* @ingroup G_Q_Exchange
-	*/
-	virtual TAPIINT32 TAP_CDECL QryExchange(TAPIUINT32 *sessionID) = 0;
 	/**
 	* @brief 得到所有品种
 	* @param[out] sessionID 返回请求的会话ID。
@@ -222,18 +150,6 @@ public:
 	* @ingroup G_Q_Commodity
 	*/
 	virtual TAPIINT32 TAP_CDECL QryCommodity(TAPIUINT32 *sessionID) = 0;
-	/**
-	* @brief 得到指定品种的交易时段
-	* @details	使用此函数前一般先通过QryCommodity得到服务器提供的品种信息，
-	*			再从品种信息中选择需要的品种填入Commodity，完成函数的调用。\n
-	* @param[out] sessionID	返回请求的会话ID。
-	* @param[in]	qryReq	指定品种。
-	* @retval 0 请求成功
-	* @retval 非0 错误码
-	* @operationtype 异步操作
-	* @ingroup G_Q_TradingTimeBucket
-	*/
-	virtual TAPIINT32 TAP_CDECL QryTradingTimeBucketOfCommodity(TAPIUINT32 *sessionID, const TapAPICommodity *qryReq) = 0;
 	/**
 	* @brief	查询系统中指定品种的合约信息
 	* @details	使用此函数前需要先QryCommodity()取得品种信息，
@@ -255,8 +171,7 @@ public:
 	* @brief	订阅指定合约的行情
 	* @details	函数向服务器请求contract描述的合约的行情信息，行情订阅成功后服务器将持续向用户推送行情信息，
 	*			直到用户退订行情信息或者断开于服务器的通信。\n
-	*			调用此函数前先获取合约信息，
-	*			然后从合约信息中取出合约填入contract。
+	*			调用此函数前先获取合约信息，然后从合约信息中取出合约填入contract。\n
 	* @param[out] sessionID 返回请求的会话ID。
 	* @param[in] contract 指定合约。
 	* @retval 0 请求成功
@@ -276,45 +191,6 @@ public:
 	* @ingroup G_Q_Quote
 	*/
 	virtual TAPIINT32 TAP_CDECL UnSubscribeQuote(TAPIUINT32 *sessionID, const TapAPIContract *contract) = 0;
-	/**
-	* @brief 查询历史行情
-	* @details 根据时间点和数量查询指定合约的历史行情
-	* @param[out]	sessionID		返回请求的会话ID。
-	* @param[in]	qryReq			请求历史行情的结构体指针；\n
-	*								HisQuoteEndTime和HisQuoteCandleQryCount共同决定查询的K线根数：\n
-	*				输入参数|返回数据
-	*				--|--							
-	*				HisQuoteEndTime:空   \n HisQuoteCandleQryCount:0   | 不允许,return 错误码。
-	*				HisQuoteEndTime:空   \n HisQuoteCandleQryCount:非0 | 最近的HisQuoteCandleQryCount条K线。
-	*				HisQuoteEndTime:非空 \n HisQuoteCandleQryCount:0   | 从HisQuoteEndTime至今的K线。
-	*				HisQuoteEndTime:非空 \n HisQuoteCandleQryCount:非0 | HisQuoteEndTime之前(以HisQuoteEndTime为终点)的\nHisQuoteCandleQryCount条K线。
-	* @retval 0 请求成功
-	* @retval 非0 错误码
-	* @attention 目前易盛不提供历史行情服务，该接口可能返回数据为空。
-	* @operationtype 异步操作
-	* @ingroup G_Q_HisQuote
-	*/
-	virtual TAPIINT32 TAP_CDECL QryHisQuote(TAPIUINT32 *sessionID,	const TapAPIHisQuoteQryReq *qryReq) = 0;
-
-	/**
-	* @brief 获取服务器当前时间
-	* @param[out] datetime 返回的服务器当前时间
-	* @retval 0 请求成功
-	* @retval 非0 错误码
-	* @operationtype 同步操作
-	* @ingroup G_Q_ServerTime
-	*/
-	virtual TAPIINT32 TAP_CDECL GetServerTime(TAPIDATETIME *datetime) = 0;
-	/**
-	* @brief 获取指定合约的全文行情
-	* @param[in] contract 指定的合约。
-	* @retval NULL 获取失败
-	* @retval !NULL 合约全文行情指针
-	* @operationtype 同步操作
-	* @attention 使用该接口前，需要先成功订阅行情。每次调用时，返回API内部缓存的最新数据。
-	* @ingroup G_Q_Quote
-	*/
-	virtual const TapAPIQuoteWhole *TAP_CDECL GetFullQuote(const TapAPIContract *contract) = 0;
 };
 
 //-----------------------------TapQuoteAPI导出函数------------------------------------
